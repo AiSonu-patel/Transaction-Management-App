@@ -17,17 +17,18 @@ function App() {
   const [hasMore, setHasMore] = useState({ next: null, previous: null });
   const [editId, setEditId] = useState(null);
   const [totalTrans, setTotalTrans] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchData = async (pageNumber = 1) => {
+  const fetchData = async (pageNumber = 1, search = '') => {
     try {
       // fetch transaction with pagination
       const tranRes = await fetch(
-        `${BASE_URL}/transactions/?page=${pageNumber}`,
+        `${BASE_URL}/transactions/?page=${pageNumber}&search=${search}`,
       );
       const tranData = await tranRes.json();
 
       setTransactions(tranData.results || []);
-      setTotalTrans(tranData.count || 0)
+      setTotalTrans(tranData.count || 0);
       setHasMore({ next: tranData.next, previous: tranData.previous });
       setCurrentPage(pageNumber);
 
@@ -41,34 +42,33 @@ function App() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(1, searchQuery);
+  }, [searchQuery]);
 
   const handlerSubmit = async (e) => {
     e.preventDefault();
     try {
       const data = { amount, transaction_type: type, comment };
-      if(editId) {
+      if (editId) {
         await fetch(`${BASE_URL}/transactions/${editId}/`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(data)
-        })
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
 
         setEditId(null);
-      }
-      else {
+      } else {
         await fetch(`${BASE_URL}/transactions/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
       }
-      
+
       setAmount("");
       setComment("");
       setType("CREDIT");
-      fetchData();
+      fetchData(currentPage, searchQuery);
     } catch (error) {
       console.error("create data error", error);
     }
@@ -83,27 +83,25 @@ function App() {
 
   const cancelEdit = () => {
     setEditId(null);
-    setAmount('');
-    setComment('');
-    setType('CREDIT');
-  }
+    setAmount("");
+    setComment("");
+    setType("CREDIT");
+  };
 
   const handlerDelete = async (id) => {
-
-    if(!window.confirm('Are you sure you want to delete'))
-      return;
+    if (!window.confirm("Are you sure you want to delete")) return;
 
     try {
       await fetch(`${BASE_URL}/transactions/${id}/`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
-      fetchData();
-
+      const targetPage = transactions.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      fetchData(targetPage, searchQuery);
     } catch (error) {
-      console.log('Deleting transaction Error', error)
+      console.log("Deleting transaction Error", error);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -197,7 +195,10 @@ function App() {
                 {editId ? "Updated Transaction" : "Save Transaction"}
               </button>
               {editId && (
-                <button onClick={cancelEdit} className="w-full text-white cursor-pointer bg-gray-700 p-1 rounded-md hover:bg-gray-400 transition">
+                <button
+                  onClick={cancelEdit}
+                  className="w-full text-white cursor-pointer bg-gray-700 p-1 rounded-md hover:bg-gray-400 transition"
+                >
                   Cancel Edit
                 </button>
               )}
@@ -209,9 +210,31 @@ function App() {
       {/* table */}
       <div className="p-6 flex flex-col justify-center">
         <div className="bg-white p-6 rounded-md shadow-md mb-2">
-          <h2 className="font-semibold text-xl text-gray-700 mb-2">
-            Transaction History <span className="py-1 px-2 text-sm font-semibold text-red-700 bg-red-100 rounded-full">{totalTrans}</span>
-          </h2>
+          <div className="flex justify-between">
+            <div>
+              <h2 className="font-semibold text-xl text-gray-700 mb-2">
+                Transaction History{" "}
+                <span className="py-1 px-2 text-sm font-semibold text-red-700 bg-red-100 rounded-full">
+                  {totalTrans}
+                </span>
+              </h2>
+            </div>
+            {/* search */}
+            <div className="mb-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name=""
+                  id=""
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="border w-75 border-gray-400 px-1 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -269,7 +292,10 @@ function App() {
                       >
                         Edit
                       </button>
-                      <button onClick={() => handlerDelete(transaction.id)} className="bg-red-200 hover:bg-red-300 px-3 py-1 rounded-md text-red-700 transition cursor-pointer">
+                      <button
+                        onClick={() => handlerDelete(transaction.id)}
+                        className="bg-red-200 hover:bg-red-300 px-3 py-1 rounded-md text-red-700 transition cursor-pointer"
+                      >
                         Delete
                       </button>
                     </td>
@@ -291,7 +317,7 @@ function App() {
         <div className="bg-white p-2 rounded-md flex justify-between items-center shadow-md">
           <button
             disabled={!hasMore.previous}
-            onClick={() => fetchData(currentPage - 1)}
+            onClick={() => fetchData(currentPage - 1, searchQuery)}
             className="px-4 py-2 bg-gray-200 rounded-md font-medium text-gray-700 hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -301,7 +327,7 @@ function App() {
           </span>
           <button
             disabled={!hasMore.next}
-            onClick={() => fetchData(currentPage + 1)}
+            onClick={() => fetchData(currentPage + 1, searchQuery)}
             className="px-4 py-2 bg-blue-600 rounded-md text-white font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
